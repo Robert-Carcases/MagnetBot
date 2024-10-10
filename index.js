@@ -1,77 +1,82 @@
 import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
 import axios from 'axios';
+import parseTorrent from 'parse-torrent';
 
 // Load environment variables from .env file
 dotenv.config();
 
-const client = new Client({ 
-    intents: [ 
-        GatewayIntentBits.Guilds, 
-        GatewayIntentBits.GuildMessages, 
-        GatewayIntentBits.MessageContent 
-    ] 
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ]
 });
 
 // List of allowed user IDs (replace these with actual user IDs)
-const allowedUserIds = process.env.USER_IDS.split(','); // Assuming USER_IDS is a comma-separated string
+const allowedUserIds = process.env.USER_IDS.split(',');
 
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
 });
 
 client.on('messageCreate', async (message) => {
-    // Ignore the bot's own messages
     if (message.author.bot) return;
 
     // Check if the user is allowed to use the command
     if (!allowedUserIds.includes(message.author.id)) {
-        // Send a permission denial reply
         const reply = await message.reply('You do not have permission to use this command.');
-        // Delete the original message and the reply after a short delay
         setTimeout(async () => {
-            try {
-                await message.delete();
-                await reply.delete(); // Optional: delete the reply as well
-            } catch (error) {
-                console.error('Failed to delete message:', error);
-            }
-        }, 5000); // Adjust the delay time as needed (5000 ms = 5 seconds)
-        return; // Exit the function after handling the permission check
+            await message.delete();
+            await reply.delete();
+        }, 5000);
+        return;
     }
 
-    // Check if the message starts with "!dwn" and contains a URL
     if (message.content.startsWith('!dwn')) {
         const urlMatch = message.content.match(/!dwn\s+(\S+)/);
         if (urlMatch) {
-            const url = urlMatch[1]; // Extract the URL
-    
-            // Validate that it's a magnet link
-            if (!url.startsWith("magnet:?")) {
-                return message.reply('Please provide a valid Magnet URL.');
+            const url = urlMatch[1];
+
+            // Check if the URL is in the correct magnet format
+            const isMagnetLink = url.startsWith('magnet:?xt=urn:btih:');
+
+            if (!isMagnetLink) {
+                const invalidReply = await message.reply('The provided link is not a valid magnet URL. Please provide a valid magnet URL.');
+                setTimeout(async () => {
+                    await invalidReply.delete();
+                }, 5000);
+                return; // Exit here since the URL is not valid
             }
-    
+
             try {
-                // Send the valid URL to your local API
-                const sentReply = await message.reply(`The Magnet URL was sent to Qbittorrent.`);
+                // Validate the magnet URL
+                const parsedTorrent = parseTorrent(url);
+
+                // If parseTorrent didn't throw an error, proceed
+                const sentReply = await message.reply('The Magnet URL was sent to Qbittorrent.');
                 const response = await axios.post('http://localhost:3000/api/download', { url });
-                
-                // Success message
-                const successReply = await message.reply(`The torrent was successfully downloaded.`);
-                
-                // Delete both the replies after 5 seconds
+
+                const successReply = await message.reply('The torrent was successfully downloaded.');
                 setTimeout(async () => {
                     await sentReply.delete();
                     await successReply.delete();
                 }, 5000);
-    
-                await message.delete(); // Delete the original message
+
+                await message.delete();
             } catch (error) {
-                console.error(error);
-                message.reply('There was an error sending the Magnet URL to the local API.');
+                console.error('Invalid magnet URL or other error:', error);
+                const errorReply = await message.reply('The provided Magnet URL is invalid or malformed. Please check the link.');
+                setTimeout(async () => {
+                    await errorReply.delete();
+                }, 5000);
             }
         } else {
-            message.reply('Please provide a valid Magnet URL in the format: !dwn "magnet-url"');
+            const invalidReply = await message.reply('Please provide a valid Magnet URL in the format: !dwn "magnet:?xt=urn:btih..."');
+            setTimeout(async () => {
+                await invalidReply.delete();
+            }, 5000);
         }
     }
 });
