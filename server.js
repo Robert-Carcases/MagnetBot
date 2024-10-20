@@ -47,6 +47,10 @@ app.post('/api/download', (req, res) => {
     });
 });
 
+app.post('/api/test', (req, res) => {
+    console.log("Successful!");
+});
+
 // Create downloads folder if not exists
 const downloadsDir = path.join(process.cwd(), 'downloads');
 if (!fs.existsSync(downloadsDir)) {

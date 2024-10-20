@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import { Client, GatewayIntentBits } from 'discord.js';
 import axios from 'axios';
 import parseTorrent from 'parse-torrent';
+import fs from "fs";
 
 // Load environment variables from .env file
 dotenv.config();
@@ -10,7 +11,8 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMembers
     ]
 });
 
@@ -78,6 +80,36 @@ client.on('messageCreate', async (message) => {
                 await invalidReply.delete();
             }, 5000);
         }
+    }
+
+    if (message.content.startsWith('!test')) {
+        try {
+            const guild = message.guild;
+            const members = await guild.members.fetch({ withPresences: true }); // Fetch only online members
+            
+            //console.log(members);
+
+            const onlineMembers = members.filter(member => !member.user.bot);
+            
+            if (onlineMembers.size === 0) {
+                return message.channel.send('No online members to choose from.');
+            }
+
+            fs.readFile('insults.json', 'utf8', (err, data) => {
+                if (err) {
+                  console.error('Error reading the file:', err);
+                  return;
+                }
+                const insults = JSON.parse(data).insults; // Parse the JSON data
+                const randomIndex = Math.floor(Math.random() * insults.length);
+                const randomInsult = insults[randomIndex].insult;
+                console.log(randomInsult); // Output the random insult
+                const randomMember = onlineMembers.random(); // Randomly select a member
+                message.channel.send(`<@${randomMember.user.id}> ${randomInsult}`);
+            });
+        } catch (error) {
+        console.error('Error selecting a random user:', error);
+        message.channel.send('Something went wrong!');            }
     }
 });
 
