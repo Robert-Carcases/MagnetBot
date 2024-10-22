@@ -86,9 +86,6 @@ client.on('messageCreate', async (message) => {
         try {
             const guild = message.guild;
             const members = await guild.members.fetch({ withPresences: true }); // Fetch only online members
-            
-            //console.log(members);
-
             const onlineMembers = members.filter(member => !member.user.bot);
             
             if (onlineMembers.size === 0) {
@@ -103,7 +100,6 @@ client.on('messageCreate', async (message) => {
                 const insults = JSON.parse(data).insults; // Parse the JSON data
                 const randomIndex = Math.floor(Math.random() * insults.length);
                 const randomInsult = insults[randomIndex].insult;
-                console.log(randomInsult); // Output the random insult
                 const randomMember = onlineMembers.random(); // Randomly select a member
                 message.channel.send(`<@${randomMember.user.id}> ${randomInsult}`);
             });
@@ -111,6 +107,8 @@ client.on('messageCreate', async (message) => {
         console.error('Error selecting a random user:', error);
         message.channel.send('Something went wrong!');            }
     }
+
+    
 });
 
 // Log in to Discord using the bot token
